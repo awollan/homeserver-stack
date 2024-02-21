@@ -1,0 +1,167 @@
+---
+version: "2.1"
+services:
+  jellyfin:
+    image: lscr.io/linuxserver/jellyfin:latest
+    container_name: jellyfin
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=America/Chicago
+      - JELLYFIN_PublishedServerUrl=192.168.50.18 #optional
+    volumes:
+      - /mnt/media_nfs_share/configs/jellyfin:/config
+      - /mnt/media_nfs_share/tv:/data/tvshows
+      - /mnt/media_nfs_share/movies:/data/movies
+    ports:
+      - 8096:8096
+      - 8920:8920 #optional
+      - 7359:7359/udp #optional
+      - 1900:1900/udp #optional
+    restart: unless-stopped
+
+    
+  jackett:
+    image: linuxserver/jackett
+    container_name: jackett
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=America/Chicago
+    volumes:
+      - /mnt/media_nfs_share/configs/jackett:/config
+      - /mnt/media_nfs_share/torrents:/downloads
+    ports:
+      - 9117:9117
+    restart: unless-stopped
+    
+  organizr:
+    container_name: organizr
+    hostname: organizr
+    image: organizr/organizr
+    restart: unless-stopped
+    ports:
+        - 90:80
+    volumes:
+        - /mnt/media_nfs_share/configs/organizr:/config
+    environment:
+        - fpm=true #true or false | using true will provide better performance
+        - branch=v2-master #v2-master or #v2-develop
+        - PUID=1000
+        - PGID=1000
+        - TZ=America/Chicago
+    
+  qbittorrentvpn:
+    image: markusmcnugen/qbittorrentvpn
+    container_name: qbittorrentvpn
+    privileged: true   
+    environment:
+      - VPN_USERNAME=
+      - VPN_PASSWORD=
+      - PUID=1000
+      - PGID=1000
+      - WEBUI_PORT_ENV=8080
+      - INCOMING_PORT_ENV=8999
+      - VPN_ENABLED=yes
+      - LAN_NETWORK=192.168.50.0/24 #adjust this to YOUR network settings
+      - NAME_SERVERS=1.1.1.1,1.0.0.1 #you can use whatever DNS provider you want
+    ports:
+      - 8080:8080
+      - 8999:8999
+      - 8999:8999/udp
+    volumes:
+      - /mnt/media_nfs_share/configs/qbittorrentvpn:/config
+      - /mnt/media_nfs_share/torrents:/downloads
+      - /etc/timezone:/etc/timezone:ro #This is for TimeZone
+    restart: unless-stopped
+    
+  radarr:
+    image: linuxserver/radarr
+    container_name: radarr
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=America/Chicago
+      - UMASK_SET=022 #optional
+    volumes:
+      - /mnt/media_nfs_share/configs/radarr:/config
+      - /mnt/media_nfs_share/downloads:/downloads
+      - /mnt/media_nfs_share/movies:/Movies
+    ports:
+      - 7878:7878
+    restart: unless-stopped
+    
+  sabnzbd:
+    image: ghcr.io/linuxserver/sabnzbd
+    container_name: sabnzbd
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=America/Chicago
+    volumes:
+      - /mnt/media_nfs_share/configs/sabnzbd:/config
+      - /mnt/media_nfs_share/downloads:/downloads
+      - /mnt/media_nfs_share/downloads/incomplete:/incomplete-downloads #optional
+    ports:
+      - 8181:8080
+      - 9191:9090
+    restart: unless-stopped
+    
+  sonarr:
+    image: linuxserver/sonarr
+    container_name: sonarr
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=America/Chicago
+      - UMASK_SET=022
+    volumes:
+      - /mnt/media_nfs_share/configs/sonarr:/config
+      - /mnt/media_nfs_share/downloads:/downloads
+      - /mnt/media_nfs_share/tv:/tv
+    ports:
+      - 8989:8989
+    restart: unless-stopped
+
+## System Monitoring
+
+  prometheus:
+      image: prom/prometheus
+      container_name: prometheus
+      environment:
+        - PUID=1000
+        - PGID=1000
+        - TZ=America/Chicago
+        - UMASK_SET=022
+      volumes:
+        - /mnt/media_nfs_share/configs/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      ports:
+        - 9292:9090
+      restart: unless-stopped
+
+  node-exporter:
+      image: quay.io/prometheus/node-exporter:latest
+      container_name: node-exporter
+      network_mode: host
+      environment:
+        - PUID=1000
+        - PGID=1000
+        - TZ=America/Chicago
+        - UMASK_SET=022
+      volumes:
+        - /:/host:ro,rslave
+      ports:
+        - 9100:9090
+      restart: unless-stopped
+    
+  grafana:
+    image: grafana/grafana
+    container_name: grafana
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=America/Chicago
+      - UMASK_SET=022
+    ports:
+      - 3000:3000
+    restart: unless-stopped
